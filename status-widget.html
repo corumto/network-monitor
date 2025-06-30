@@ -1,0 +1,175 @@
+<div class="prod-status-widget">
+    <div class="padding-global">
+        <div class="container-medium">
+            <div class="padding-section-medium">
+                
+                <!-- Overall Status Banner -->
+                <div id="overall-status" style="background: linear-gradient(135deg, #4264d1, #6b46c1); color: white; padding: 2rem; border-radius: 12px; text-align: center; margin-bottom: 3rem; box-shadow: 0 4px 20px rgba(66, 100, 209, 0.2);">
+                    <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                        <span id="overall-emoji">🟡</span>
+                        <span id="overall-text">Checking Systems...</span>
+                    </h2>
+                    <p style="font-size: 1.1rem; opacity: 0.9; margin: 0;">Real-time status checks</p>
+                </div>
+
+                <!-- Status Grid -->
+                <div class="w-layout-grid location-grid" id="service-grid"></div>
+
+                <!-- Last Updated -->
+                <div style="text-align: center; color: #6c757d; font-size: 0.9rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e9ecef;">
+                    Last updated: <span id="lastUpdated"></span>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Service data array
+    const SERVICE_LIST = [
+        {
+            key: 'onescan',
+            name: 'OneScan Platform',
+            url: 'https://onescan.lspedia.com',
+            display: 'onescan.lspedia.com'
+        },
+        {
+            key: 'api',
+            name: 'API Gateway',
+            url: 'https://api.lspedia.com',
+            display: 'api.lspedia.com'
+        },
+        {
+            key: 'vrs',
+            name: 'VRS Service',
+            url: 'https://vrs.lspedia.com',
+            display: 'vrs.lspedia.com'
+        },
+        {
+            key: 'onescan-io',
+            name: 'OneScan IO Platform',
+            url: 'https://onescan.lspedia.io',
+            display: 'onescan.lspedia.io'
+        }
+    ];
+
+    let serviceStatus = {};
+
+    async function checkService(name, url) {
+        const startTime = Date.now();
+        try {
+            const response = await fetch(url, { 
+                method: 'HEAD',
+                mode: 'no-cors',
+                cache: 'no-cache'
+            });
+            const responseTime = Date.now() - startTime;
+            return { online: true, responseTime };
+        } catch (error) {
+            return { online: false, responseTime: null };
+        }
+    }
+
+    function updateServiceDisplay(serviceName, status) {
+        const serviceElement = document.getElementById(`service-${serviceName}`);
+        const statusIndicator = serviceElement.querySelector('.status-indicator');
+        const responseTimeElement = serviceElement.querySelector('.response-time');
+        const dot = statusIndicator.querySelector('div');
+        
+        if (status.online) {
+            // Online - Green
+            serviceElement.style.borderLeftColor = '#3A5134';
+            statusIndicator.style.color = '#3A5134';
+            dot.style.background = '#3A5134';
+            statusIndicator.textContent = 'Operational';
+            statusIndicator.prepend(dot);
+            responseTimeElement.textContent = `Response time: ${status.responseTime}ms`;
+        } else {
+            // Offline - Red
+            serviceElement.style.borderLeftColor = '#BA0D0D';
+            statusIndicator.style.color = '#BA0D0D';
+            dot.style.background = '#BA0D0D';
+            statusIndicator.textContent = 'Offline';
+            statusIndicator.prepend(dot);
+            responseTimeElement.textContent = 'Service unavailable';
+        }
+    }
+
+    function updateOverallStatus() {
+        const totalServices = Object.keys(serviceStatus).length;
+        const onlineServices = Object.values(serviceStatus).filter(s => s.online).length;
+        
+        const overallEmoji = document.getElementById('overall-emoji');
+        const overallText = document.getElementById('overall-text');
+        const overallStatus = document.getElementById('overall-status');
+        
+        if (onlineServices === totalServices) {
+            overallEmoji.textContent = '🟢';
+            overallText.textContent = 'All Systems Operational';
+            overallStatus.style.background = '#3A5134';
+        } else if (onlineServices === 0) {
+            overallEmoji.textContent = '🔴';
+            overallText.textContent = 'All Systems Down';
+            overallStatus.style.background = '#BA0D0D';
+        } else {
+            overallEmoji.textContent = '🟡';
+            overallText.textContent = `${onlineServices}/${totalServices} Systems Online`;
+            overallStatus.style.background = '#ffc107';
+        }
+    }
+
+    async function checkAllServices() {
+        console.log('Checking services...');
+        for (const service of SERVICE_LIST) {
+            const status = await checkService(service.key, service.url);
+            serviceStatus[service.key] = status;
+            updateServiceDisplay(service.key, status);
+        }
+        updateOverallStatus();
+        updateTime();
+    }
+
+    function updateTime() {
+        const now = new Date();
+        const timeString = now.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZoneName: 'short'
+        });
+        document.getElementById('lastUpdated').textContent = timeString;
+    }
+
+    // Render service cards
+    function renderServiceGrid() {
+        const grid = document.getElementById('service-grid');
+        grid.innerHTML = '';
+        SERVICE_LIST.forEach(service => {
+            const div = document.createElement('div');
+            div.id = `service-${service.key}`;
+            div.style = 'background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); border-left: 4px solid #ffc107; transition: transform 0.2s ease;';
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="font-size: 1.2rem; font-weight: 600; color: #2c3e50; margin: 0;">${service.name}</h3>
+                    <div class="status-indicator" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: #ffc107; font-weight: 500;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffc107;"></div>
+                        Checking...
+                    </div>
+                </div>
+                <div style="font-size: 0.9rem; color: #6c757d; font-family: 'Courier New', monospace; margin-bottom: 0.5rem;">${service.display}</div>
+                <div class="response-time" style="font-size: 0.85rem; color: #6c757d;">Response time: --</div>
+            `;
+            grid.appendChild(div);
+        });
+    }
+
+    // Call render on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', renderServiceGrid);
+
+    // Check immediately and then every minute
+    checkAllServices();
+    setInterval(checkAllServices, 60000);
+</script>
